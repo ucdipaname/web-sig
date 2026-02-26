@@ -1,73 +1,83 @@
-
-
 <!DOCTYPE html>
 <html lang="fr">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Géo-Outil Allégé - Version Stable</title>
+    <title>Géo-Outil Expert + Clustering</title>
 
     <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/leaflet.draw/1.0.4/leaflet.draw.css" />
-    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" />
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" />
+    <link rel="stylesheet" href="https://unpkg.com/leaflet.markercluster@1.4.1/dist/MarkerCluster.css" />
+    <link rel="stylesheet" href="https://unpkg.com/leaflet.markercluster@1.4.1/dist/MarkerCluster.Default.css" />
     
     <style>
-        :root {
-            --sidebar-width: 280px;
-            --topbar-height: 60px;
-            --dark-blue: #2c3e50;
-        }
-
-        body { margin: 0; font-family: sans-serif; display: flex; flex-direction: column; height: 100vh; overflow: hidden; }
-
-        #top-bar { 
-            height: var(--topbar-height); background: var(--dark-blue); 
-            display: flex; align-items: center; justify-content: center; z-index: 1001; 
-        }
+        :root { --sidebar-width: 320px; --dark-blue: #1e272e; --accent: #0fbcf9; --success: #05c46b; --danger: #ff3f34; }
+        body { margin: 0; font-family: 'Segoe UI', system-ui, sans-serif; display: flex; flex-direction: column; height: 100vh; background: #f1f2f6; }
         
-        .search-box { position: relative; width: 60%; }
-        #search-input { width: 100%; padding: 10px; border-radius: 20px; border: none; }
+        #top-bar { height: 60px; background: var(--dark-blue); display: flex; align-items: center; justify-content: center; z-index: 2000; box-shadow: 0 2px 10px rgba(0,0,0,0.3); }
+        .search-box { width: 50%; display: flex; gap: 10px; }
+        #search-input { flex: 1; padding: 10px 15px; border-radius: 20px; border: none; outline: none; font-size: 14px; }
+        
+        #container { display: flex; flex: 1; overflow: hidden; }
+        #sidebar { width: var(--sidebar-width); background: white; border-right: 1px solid #dcdde1; padding: 20px; z-index: 1500; overflow-y: auto; display: flex; flex-direction: column; gap: 15px; }
+        #map { flex: 1; z-index: 1; position: relative; }
 
-        #container { display: flex; flex: 1; }
+        .card { background: #f8f9fa; border: 1px solid #e1e8ed; padding: 15px; border-radius: 12px; }
+        .card h3 { margin: 0 0 12px 0; font-size: 14px; color: #485e74; text-transform: uppercase; letter-spacing: 1px; display: flex; align-items: center; gap: 8px; }
+        
+        .btn { width: 100%; padding: 12px; cursor: pointer; border: none; border-radius: 8px; color: white; font-weight: 600; display: flex; align-items: center; justify-content: center; gap: 10px; transition: all 0.2s; margin-bottom: 8px; }
+        .btn:active { transform: scale(0.98); }
+        
+        .btn-csv { background: #8257e5; }
+        .btn-export { background: var(--success); }
+        .btn-import { background: var(--accent); }
+        .btn-loc { background: #ffa801; }
+        .btn-clear { background: var(--danger); }
 
-        #sidebar { 
-            width: var(--sidebar-width); background: #fdfdfd; 
-            border-right: 1px solid #ccc; padding: 15px; z-index: 1000;
-            display: flex; flex-direction: column; gap: 15px;
-        }
-
-        .card { background: white; border: 1px solid #eee; padding: 10px; border-radius: 8px; box-shadow: 0 2px 4px rgba(0,0,0,0.05); }
-
-        #map { flex: 1; background: #e0e0e0; } /* Fond gris si la carte ne charge pas */
-
-        .btn { width: 100%; padding: 10px; cursor: pointer; border: none; border-radius: 5px; color: white; margin-bottom: 5px; font-weight: bold; }
-        .btn-export { background: #27ae60; }
-        .btn-import { background: #3498db; }
-        .btn-clear { background: #e74c3c; }
+        #prog-container { display: none; background: #dcdde1; border-radius: 10px; height: 12px; overflow: hidden; margin-top: 10px; }
+        #prog-bar { background: var(--success); height: 100%; width: 0%; transition: width 0.2s; }
+        
+        /* Style des clusters personnalisé */
+        .marker-cluster-small { background-color: rgba(181, 226, 140, 0.6); }
+        .marker-cluster-small div { background-color: rgba(110, 204, 57, 0.6); }
     </style>
 </head>
 <body>
 
     <header id="top-bar">
         <div class="search-box">
-            <input type="text" id="search-input" placeholder="Tapez une rue + Entrée...">
+            <input type="text" id="search-input" placeholder="Rechercher un lieu ou une adresse...">
         </div>
     </header>
 
     <div id="container">
         <aside id="sidebar">
             <div class="card">
-                <h3 style="margin-top:0">Météo</h3>
-                <div id="weather-info">Déplacez la carte...</div>
+                <h3><i class="fa-solid fa-location-crosshairs"></i> Navigation</h3>
+                <button class="btn btn-loc" onclick="locateMe()"><i class="fa-solid fa-street-view"></i> Ma Position</button>
+                <div id="pos-info" style="font-size: 11px; color: #7f8c8d; text-align: center;">Position GPS...</div>
             </div>
 
             <div class="card">
-                <h3>Données</h3>
-                <button class="btn btn-export" onclick="exportData()">Exporter</button>
-                <button class="btn btn-import" onclick="document.getElementById('file-input').click()">Importer</button>
-                <input type="file" id="file-input" style="display:none" accept=".geojson">
-                <button class="btn btn-clear" onclick="clearMap()">Effacer tout</button>
+                <h3><i class="fa-solid fa-file-csv"></i> Import Massif</h3>
+                <button class="btn btn-csv" onclick="document.getElementById('csv-input').click()">
+                    <i class="fa-solid fa-cloud-arrow-up"></i> Charger un CSV
+                </button>
+                <input type="file" id="csv-input" style="display:none" accept=".csv">
+                <div id="prog-container"><div id="prog-bar"></div></div>
+                <div id="log-status" style="font-size: 11px; margin-top:5px; color:#636e72">Le clustering est activé pour les imports.</div>
             </div>
+
+            <div class="card">
+                <h3><i class="fa-solid fa-layer-group"></i> Projets</h3>
+                <button class="btn btn-export" onclick="exportData()"><i class="fa-solid fa-file-export"></i> Exporter (GeoJSON)</button>
+                <button class="btn btn-import" onclick="document.getElementById('file-input').click()"><i class="fa-solid fa-file-import"></i> Ouvrir un projet</button>
+                <input type="file" id="file-input" style="display:none" accept=".geojson">
+                <button class="btn btn-clear" onclick="clearData()"><i class="fa-solid fa-eraser"></i> Réinitialiser</button>
+            </div>
+            
+            <div style="font-size: 10px; color: #b2bec3; text-align: center;">Sauvegarde automatique (LocalStorage)</div>
         </aside>
 
         <main id="map"></main>
@@ -75,89 +85,177 @@
 
     <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/leaflet.draw/1.0.4/leaflet.draw.js"></script>
+    <script src="https://unpkg.com/leaflet.markercluster@1.4.1/dist/leaflet.markercluster.js"></script>
 
     <script>
-        // 1. Initialisation
-        const map = L.map('map', { zoomControl: false }).setView([46.6, 2.2], 6);
-        L.control.zoom({ position: 'bottomright' }).addTo(map);
+        // --- COUCHES ---
+        const layers = {
+            light: L.tileLayer('https://{s}.basemaps.cartocdn.com/light_all/{z}/{x}/{y}{r}.png', { attribution: '©CARTO' }),
+            osm: L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', { attribution: '©OSM' }),
+            sat: L.tileLayer('https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}', { attribution: '©Esri' })
+        };
 
-        // 2. FOND DE CARTE - Utilisation de OSM France (Version claire et stable)
-        // Si celui-ci ne s'affiche pas, le problème vient sûrement de votre connexion ou d'un pare-feu.
-        const lightLayer = L.tileLayer('https://{s}.tile.openstreetmap.fr/osmfr/{z}/{x}/{y}.png', {
-            maxZoom: 20,
-            attribution: 'Données © OpenStreetMap France'
-        }).addTo(map);
+        const map = L.map('map', { 
+            center: [46.6, 2.2], 
+            zoom: 6, 
+            layers: [layers.light],
+            zoomControl: false 
+        });
 
-        // 3. Outils de dessin
-        const drawnItems = new L.FeatureGroup();
+        // --- GROUPES ---
+        const drawnItems = new L.FeatureGroup(); // Pour les dessins (lignes, polygones)
+        const markerCluster = L.markerClusterGroup(); // Pour les points importés (clustering)
         map.addLayer(drawnItems);
+        map.addLayer(markerCluster);
 
+        // --- INTERFACE ---
+        L.control.layers({ "Épuré": layers.light, "Standard": layers.osm, "Satellite": layers.sat }, null, { collapsed: false }).addTo(map);
+        L.control.zoom({ position: 'bottomright' }).addTo(map);
+        L.control.scale({ imperial: false }).addTo(map);
+
+        // --- SAUVEGARDE & PERSISTANCE ---
+        function saveToLocal() {
+            const data = {
+                drawn: drawnItems.toGeoJSON(),
+                clustered: markerCluster.toGeoJSON()
+            };
+            localStorage.setItem('mapExpertData', JSON.stringify(data));
+        }
+
+        function loadFromLocal() {
+            const saved = localStorage.getItem('mapExpertData');
+            if (!saved) return;
+            const data = JSON.parse(saved);
+            
+            // Recharger dessins
+            L.geoJSON(data.drawn, {
+                onEachFeature: (f, l) => {
+                    if (f.properties && f.properties.description) l.bindPopup(createPopupContent(f.properties.description, l));
+                    drawnItems.addLayer(l);
+                }
+            });
+
+            // Recharger clusters
+            L.geoJSON(data.clustered, {
+                onEachFeature: (f, l) => {
+                    if (f.properties && f.properties.description) l.bindPopup(createPopupContent(f.properties.description, l));
+                    markerCluster.addLayer(l);
+                }
+            });
+        }
+
+        function createPopupContent(text, layer) {
+            const container = document.createElement('div');
+            container.innerHTML = `<div style="margin-bottom:8px"><strong>Note :</strong><br>${text}</div>
+                <button onclick="editPopup(this)" style="font-size:10px; cursor:pointer">Modifier</button>`;
+            container.layer = layer;
+            return container;
+        }
+
+        window.editPopup = function(btn) {
+            const newText = prompt("Nouveau texte :");
+            if (newText) {
+                const layer = btn.parentElement.layer;
+                layer.options.description = newText;
+                layer.setPopupContent(createPopupContent(newText, layer));
+                saveToLocal();
+            }
+        };
+
+        // --- DESSIN ---
         const drawControl = new L.Control.Draw({
             position: 'topright',
             draw: { circle: false, circlemarker: false, 
-                   polyline: { shapeOptions: { color: 'blue' } },
-                   polygon: { shapeOptions: { color: 'green' } } 
+                   polyline: { shapeOptions: { color: '#0fbcf9', weight: 4 } },
+                   polygon: { shapeOptions: { color: '#05c46b' } } 
             },
             edit: { featureGroup: drawnItems }
         });
         map.addControl(drawControl);
 
         map.on(L.Draw.Event.CREATED, (e) => {
-            const layer = e.layer;
-            if (e.layerType === 'marker') {
-                const txt = prompt("Texte :");
-                if (txt) {
-                    layer.bindPopup(txt).openPopup();
-                    layer.options.description = txt;
-                }
-            }
-            drawnItems.addLayer(layer);
+            const l = e.layer;
+            const content = (e.layerType === 'marker') ? (prompt("Description du point :") || "Sans titre") : "Tracé";
+            l.bindPopup(createPopupContent(content, l)).options.description = content;
+            
+            // On ajoute les marqueurs manuels au cluster aussi pour plus de propreté
+            if (e.layerType === 'marker') markerCluster.addLayer(l);
+            else drawnItems.addLayer(l);
+            
+            saveToLocal();
         });
 
-        // 4. Recherche
-        document.getElementById('search-input').onkeypress = function(e) {
-            if (e.key === 'Enter') {
-                fetch('https://nominatim.openstreetmap.org/search?format=json&q=' + this.value)
-                .then(r => r.json()).then(data => {
-                    if (data[0]) map.setView([data[0].lat, data[0].lon], 15);
-                });
-            }
-        };
-
-        // 5. Fonctions
-        function clearMap() { if(confirm("Effacer ?")) drawnItems.clearLayers(); }
-
-        function exportData() {
-            const data = drawnItems.toGeoJSON();
-            const blob = new Blob([JSON.stringify(data)], {type: "application/json"});
-            const url = URL.createObjectURL(blob);
-            const a = document.createElement('a');
-            a.href = url; a.download = 'carte.geojson'; a.click();
-        }
-
-        document.getElementById('file-input').onchange = function(e) {
+        // --- CSV GÉOCODAGE ---
+        document.getElementById('csv-input').onchange = function(e) {
             const reader = new FileReader();
-            reader.onload = function(ev) {
-                const geo = JSON.parse(ev.target.result);
-                L.geoJSON(geo, {
-                    onEachFeature: (f, l) => {
-                        if (f.properties && f.properties.description) l.bindPopup(f.properties.description);
-                        drawnItems.addLayer(l);
-                    }
-                });
+            reader.onload = async function(ev) {
+                const rows = ev.target.result.split('\n').filter(r => r.includes(',')).map(r => r.split(','));
+                const h = rows[0].map(v => v.trim().toLowerCase());
+                const idx = h.indexOf('adresse');
+                if (idx === -1) return alert("Colonne 'adresse' manquante !");
+                
+                document.getElementById('prog-container').style.display = 'block';
+                for(let i=1; i<rows.length; i++) {
+                    const addr = rows[i][idx].trim();
+                    const p = Math.round((i/(rows.length-1))*100);
+                    document.getElementById('prog-bar').style.width = p + "%";
+                    
+                    if(!addr) continue;
+                    await new Promise(r => setTimeout(r, 1100)); // Limite API
+                    
+                    try {
+                        const res = await fetch(`https://nominatim.openstreetmap.org/search?format=json&q=${encodeURIComponent(addr)}`);
+                        const d = await res.json();
+                        if(d[0]) {
+                            const m = L.marker([d[0].lat, d[0].lon]);
+                            m.bindPopup(createPopupContent(addr, m)).options.description = addr;
+                            markerCluster.addLayer(m);
+                        }
+                    } catch(err) {}
+                }
+                document.getElementById('prog-container').style.display = 'none';
+                saveToLocal();
+                if(markerCluster.getLayers().length > 0) map.fitBounds(markerCluster.getBounds());
             };
             reader.readAsText(e.target.files[0]);
         };
 
-        // 6. Météo (Simulée pour éviter les erreurs de clé API)
-        function updateWeather() {
-            const c = map.getCenter();
-            document.getElementById('weather-info').innerHTML = 
-                `Lat: ${c.lat.toFixed(2)}<br>Lon: ${c.lng.toFixed(2)}<br><em>Prêt</em>`;
+        // --- UTILS ---
+        function clearData() {
+            if(confirm("Tout effacer ?")) {
+                drawnItems.clearLayers();
+                markerCluster.clearLayers();
+                localStorage.removeItem('mapExpertData');
+            }
         }
-        map.on('moveend', updateWeather);
-        updateWeather();
 
+        function exportData() {
+            const combined = { type: "FeatureCollection", features: [
+                ...drawnItems.toGeoJSON().features,
+                ...markerCluster.toGeoJSON().features
+            ]};
+            const a = document.createElement('a');
+            a.href = URL.createObjectURL(new Blob([JSON.stringify(combined)], {type: "application/json"}));
+            a.download = 'projet_complet.geojson'; a.click();
+        }
+
+        function locateMe() { map.locate({setView: true, maxZoom: 15}); }
+
+        document.getElementById('search-input').onkeypress = function(e) {
+            if (e.key === 'Enter') {
+                fetch('https://nominatim.openstreetmap.org/search?format=json&q=' + encodeURIComponent(this.value))
+                .then(r => r.json()).then(d => { if(d[0]) map.setView([d[0].lat, d[0].lon], 15); });
+            }
+        };
+
+        map.on('moveend', () => {
+            const c = map.getCenter();
+            document.getElementById('pos-info').innerText = `Lat: ${c.lat.toFixed(4)} | Lon: ${c.lng.toFixed(4)}`;
+        });
+
+        window.onload = loadFromLocal;
     </script>
 </body>
 </html>
+
+
